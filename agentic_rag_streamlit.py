@@ -1,5 +1,6 @@
 # import basics
 import io
+import base64
 from pypdf import PdfReader
 import docx
 from PIL import Image
@@ -20,14 +21,17 @@ from langchain_core.tools import tool
 # import supabase db
 from supabase.client import Client, create_client
 
+# import openai client für Vision
+from openai import OpenAI
+
 # --- Streamlit Config MUSS ganz oben stehen ---
 st.set_page_config(page_title="Schnoor - Agentic RAG Chatbot", page_icon="🤖")
 
 # ---------------- Secrets laden ----------------
-APP_PASSWORD = st.secrets["APP_PASSWORD"]
-supabase_url = st.secrets["SUPABASE_URL"]
-supabase_key = st.secrets["SUPABASE_SERVICE_KEY"]
-openai_api_key = st.secrets["OPENAI_API_KEY"]
+APP_PASSWORD = st.secrets.get("APP_PASSWORD")
+supabase_url = st.secrets.get("SUPABASE_URL")
+supabase_key = st.secrets.get("SUPABASE_SERVICE_KEY")
+openai_api_key = st.secrets.get("OPENAI_API_KEY")
 # ------------------------------------------------
 
 # initiating supabase
@@ -75,16 +79,21 @@ agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 def extract_text_from_image(uploaded_file):
     """Extrahiere Informationen aus einem Bild (z.B. Raumplan) mithilfe von GPT-4o Vision."""
     try:
-        image = Image.open(uploaded_file)
+        # Bild in Bytes
+        image_bytes = uploaded_file.read()
+        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
-        vision_llm = ChatOpenAI(model="gpt-4o-mini", api_key=openai_api_key)
-
-        response = vision_llm.invoke([
-            {"role": "system", "content": "Analysiere das Bild und beschreibe es ausführlich. Wenn es ein Raumplan ist, liste die Räume, Bezeichnungen und erkennbare Strukturen auf."},
-            {"role": "user", "content": "Hier ist ein Bild.", "name": "user", "image": image}
-        ])
-
-        return response.content
+        client = OpenAI(api_key=openai_api_key)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Analysiere das Bild und beschreibe es ausführlich. "
+                                              "Wenn es ein Raumplan ist, liste die Räume, Bezeichnungen und erkennbare Strukturen auf."},
+                {"role": "user", "content": f"data:image/png;base64,{image_b64}"}
+            ]
+        )
+        result_text = response.choices[0].message.content
+        return result_text
     except Exception as e:
         return f"<Bild konnte nicht verarbeitet werden: {str(e)}>"
 
@@ -204,7 +213,7 @@ if user_question:
     st.session_state.chats[current].append(HumanMessage(user_question))
     with st.chat_message("user"):
         st.markdown(user_question)
-    
+
     with st.spinner("Agent antwortet..."):
         result = agent_executor.invoke({
             "input": user_question,
