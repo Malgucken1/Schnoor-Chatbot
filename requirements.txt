@@ -98,8 +98,5 @@ zstandard==0.23.0
 langchainhub==0.1.17
 pypdf==5.3.0
 python-docx==1.1.2
-
-
-
-
-
+# NEU HINZUGEFÜGT:
+python-multipart==0.0.6        # für Streamlit File Upload Handling (optional, manchmal nötig)
