@@ -58,7 +58,7 @@ prompt = hub.pull("hwchase17/openai-functions-agent")
 @tool(response_format="content_and_artifact")
 def retrieve(query: str):
     """Retrieve information related to a query."""
-    retrieved_docs = vector_store.similarity_search(query, k=2)
+    retrieved_docs = vector_store.similarity_search(query, k=10)
     serialized = "\n\n".join(
         f"Content: {doc.page_content}\n\n"
         f"<span style='color:gray; font-size:small; cursor:help;' title='{doc.metadata.get('source', 'Unbekannte Quelle')}'>Quelle</span>"
